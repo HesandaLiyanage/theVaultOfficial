@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: theVault
+  datasource:
+    url: jdbc:postgresql://${VAULT_DB_HOST:localhost}:${VAULT_DB_PORT:5433}/${VAULT_DB_NAME:vault_db}
+    username: vault
+    password: vault
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate.ddl-auto: validate   # Flyway manages schema, not Hibernate
+    show-sql: false
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+jwt:
+  secret: your-256-bit-secret-key-here-change-in-production
+  expiration-ms: 900000          # 15 minutes
+  refresh-expiration-ms: 604800000  # 7 days
+
+server:
+  port: ${SERVER_PORT:8081}
