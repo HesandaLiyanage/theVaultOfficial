@@ -1,7 +1,5 @@
 package com.hess.thevault.model;
 
-import java.util.EnumMap;
-
-public enum role {
+public enum Role {
     USER, ADMIN;
 }
