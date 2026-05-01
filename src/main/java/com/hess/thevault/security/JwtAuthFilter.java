@@ -1,4 +1,4 @@
-package com.hess.thevault.config.security;
+package com.hess.thevault.security;
 
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.filter.OncePerRequestFilter;
