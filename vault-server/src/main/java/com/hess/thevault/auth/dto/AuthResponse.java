@@ -1,4 +1,4 @@
-package com.vault.server.auth.dto;
+package com.hess.thevault.auth.dto;
 
 import com.hess.thevault.user.Role;
 
