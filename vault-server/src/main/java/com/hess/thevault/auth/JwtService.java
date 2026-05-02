@@ -23,8 +23,8 @@ public class JwtService {
     private static final String CLAIM_TENANT_ID = "tenantId";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_TYPE = "type";
-    private static final String TOKEN_TYPE_ACCESS = "ACCESS";
-    private static final String TOKEN_TYPE_REFRESH = "REFRESH";
+    public static final String TOKEN_TYPE_ACCESS = "ACCESS";
+    public static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
     private final SecretKey signingKey;
     private final long accessTokenExpirationMs;
