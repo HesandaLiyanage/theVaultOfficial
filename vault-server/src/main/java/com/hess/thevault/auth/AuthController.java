@@ -3,14 +3,18 @@ package com.hess.thevault.auth;
 import com.hess.thevault.auth.dto.AuthResponse;
 import com.hess.thevault.auth.dto.LoginRequest;
 import com.hess.thevault.auth.dto.MeResponse;
+import com.hess.thevault.auth.dto.RefreshTokenRequest;
+import com.hess.thevault.auth.dto.RefreshTokenResponse;
 import com.hess.thevault.auth.dto.RegisterRequest;
 import com.hess.thevault.user.User;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,6 +38,17 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public RefreshTokenResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return authService.refresh(request);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+        authService.logout(authorizationHeader);
     }
 
     @GetMapping("/me")

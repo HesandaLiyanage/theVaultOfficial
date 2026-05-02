@@ -1,6 +1,7 @@
 package com.hess.thevault.security;
 
 import com.hess.thevault.auth.JwtService;
+import com.hess.thevault.user.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,7 +9,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -20,11 +20,11 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
+    private final UserRepository userRepository;
 
-    public JwtAuthFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthFilter(JwtService jwtService, UserRepository userRepository) {
         this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -46,15 +46,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String email = jwtService.extractAllClaims(token).getSubject();
-        if (!StringUtils.hasText(email)) {
-            SecurityContextHolder.clearContext();
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid authentication token");
-            return;
-        }
-
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            var userDetails = userDetailsService.loadUserByUsername(email);
+            var userDetails = userRepository.findById(jwtService.extractUserId(token))
+                    .orElse(null);
+
+            if (userDetails == null || !userDetails.isEnabled()) {
+                SecurityContextHolder.clearContext();
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid authentication token");
+                return;
+            }
+
             var authentication = new UsernamePasswordAuthenticationToken(
                     userDetails,
                     null,
