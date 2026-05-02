@@ -48,6 +48,10 @@ public class JwtService {
         return generateToken(user, TOKEN_TYPE_REFRESH, refreshTokenExpirationMs);
     }
 
+    public long getAccessTokenExpirationMs() {
+        return accessTokenExpirationMs;
+    }
+
     public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey)
