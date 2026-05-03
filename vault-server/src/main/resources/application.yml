@@ -16,6 +16,13 @@ spring:
       host: localhost
       port: 6379
 
+vault:
+  internal-service-key: ${VAULT_INTERNAL_SERVICE_KEY:change-me-in-production}
+  api-keys:
+    rate-limit:
+      limit: ${VAULT_API_KEY_RATE_LIMIT:100}
+      window-seconds: ${VAULT_API_KEY_RATE_LIMIT_WINDOW_SECONDS:60}
+
 jwt:
   secret: your-256-bit-secret-key-here-change-in-production
   expiration-ms: 900000          # 15 minutes
