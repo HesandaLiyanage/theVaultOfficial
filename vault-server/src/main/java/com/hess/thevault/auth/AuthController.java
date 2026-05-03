@@ -52,12 +52,12 @@ public class AuthController {
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+    public void logout(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
         authService.logout(authorizationHeader);
     }
 
     @GetMapping("/me")
-    public MeResponse me(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+    public MeResponse me(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
         return authService.me(authorizationHeader);
     }
 }
