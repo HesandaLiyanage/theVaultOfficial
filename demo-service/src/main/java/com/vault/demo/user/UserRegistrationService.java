@@ -1,41 +1,36 @@
 package com.vault.demo.user;
 
-import com.vault.demo.user.dto.AuthResponse;
-import com.vault.demo.user.dto.HashPasswordResponse;
 import com.vault.demo.user.dto.RegisterUserRequest;
 import com.vault.demo.user.dto.RegistrationResponse;
-import com.vault.demo.user.dto.VaultValidationResponse;
-import com.vault.sdk.VaultProperties;
+import com.vault.sdk.auth.AuthService;
+import com.vault.sdk.auth.dto.AuthResponse;
+import com.vault.sdk.auth.dto.HashPasswordRequest;
+import com.vault.sdk.auth.dto.HashPasswordResponse;
+import com.vault.sdk.auth.dto.LoginRequest;
+import com.vault.sdk.auth.dto.ValidateRegistrationRequest;
+import com.vault.sdk.auth.dto.ValidationResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClient;
 
 import java.util.Locale;
-import java.util.Map;
 
 @Service
 public class UserRegistrationService {
 
     private final UserRepository userRepository;
-    private final RestClient vaultClient;
+    private final AuthService authService;
 
-    public UserRegistrationService(UserRepository userRepository, VaultProperties properties) {
+    public UserRegistrationService(UserRepository userRepository, AuthService authService) {
         this.userRepository = userRepository;
-        this.vaultClient = RestClient.builder()
-                .baseUrl(properties.getBaseUrl())
-                .build();
+        this.authService = authService;
     }
 
     @Transactional
     public RegistrationResponse register(RegisterUserRequest request) {
         String email = normalizeEmail(request.email());
-        validateWithVault(email, request.password());
+        validateRegistration(email, request.password());
 
-        HashPasswordResponse hashResponse = vaultClient.post()
-                .uri("/auth/hash-password")
-                .body(Map.of("password", request.password()))
-                .retrieve()
-                .body(HashPasswordResponse.class);
+        HashPasswordResponse hashResponse = authService.hashPassword(new HashPasswordRequest(request.password()));
 
         if (hashResponse == null || hashResponse.hash() == null || hashResponse.hash().isBlank()) {
             throw new RegistrationException("Vault did not return a password hash");
@@ -49,11 +44,7 @@ public class UserRegistrationService {
                 request.tenantId()
         ));
 
-        AuthResponse authResponse = vaultClient.post()
-                .uri("/auth/login")
-                .body(Map.of("email", email, "password", request.password()))
-                .retrieve()
-                .body(AuthResponse.class);
+        AuthResponse authResponse = authService.login(new LoginRequest(email, request.password()));
 
         if (authResponse == null) {
             throw new RegistrationException("Vault did not return authentication tokens");
@@ -74,12 +65,8 @@ public class UserRegistrationService {
         );
     }
 
-    private void validateWithVault(String email, String password) {
-        VaultValidationResponse validation = vaultClient.post()
-                .uri("/auth/validate-registration")
-                .body(Map.of("email", email, "password", password))
-                .retrieve()
-                .body(VaultValidationResponse.class);
+    private void validateRegistration(String email, String password) {
+        ValidationResponse validation = authService.validateRegistration(new ValidateRegistrationRequest(email, password));
 
         if (validation == null || !validation.valid()) {
             String reason = validation == null || validation.reason() == null

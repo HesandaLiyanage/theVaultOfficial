@@ -13,6 +13,18 @@ public class VaultAuthentication extends AbstractAuthenticationToken {
     private final ValidationResponse validation;
     private final String credentialType;
 
+    public VaultAuthentication(
+            String userId,
+            String tenantId,
+            String role,
+            List<String> scopes,
+            String credentialType,
+            String apiKeyId,
+            String authSource
+    ) {
+        this(new ValidationResponse(true, userId, tenantId, role, scopes, null, apiKeyId, authSource), credentialType);
+    }
+
     public VaultAuthentication(ValidationResponse validation, String credentialType) {
         super(authorities(validation));
         this.validation = validation;

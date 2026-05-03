@@ -1,0 +1,91 @@
+package com.vault.sdk.audit;
+
+import com.vault.sdk.VaultAuthentication;
+import com.vault.sdk.auth.dto.AuthResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+@Aspect
+public class AuditAspect {
+
+    private final AuditService auditService;
+
+    public AuditAspect(AuditService auditService) {
+        this.auditService = auditService;
+    }
+
+    @Around("@annotation(audited)")
+    public Object audit(ProceedingJoinPoint joinPoint, Audited audited) throws Throwable {
+        try {
+            Object result = joinPoint.proceed();
+            auditService.record(record(audited, "SUCCESS", result, null));
+            return result;
+        } catch (Throwable ex) {
+            auditService.record(record(audited, "FAILURE", null, ex.getClass().getSimpleName()));
+            throw ex;
+        }
+    }
+
+    private AuditRecord record(Audited audited, String status, Object result, String error) {
+        String userId = null;
+        String tenantId = null;
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication instanceof VaultAuthentication vaultAuthentication) {
+            userId = vaultAuthentication.getUserId();
+            tenantId = vaultAuthentication.getTenantId();
+        }
+
+        if (result instanceof AuthResponse authResponse) {
+            userId = authResponse.userId();
+            tenantId = authResponse.tenantId();
+        }
+
+        String metadata = error == null
+                ? "{\"source\":\"vault-sdk\"}"
+                : "{\"source\":\"vault-sdk\",\"error\":\"%s\"}".formatted(error);
+
+        return new AuditRecord(
+                tenantId,
+                userId,
+                audited.action(),
+                resource(audited),
+                ipAddress(),
+                status,
+                metadata
+        );
+    }
+
+    private String resource(Audited audited) {
+        if (!audited.resource().isBlank()) {
+            return audited.resource();
+        }
+        HttpServletRequest request = request();
+        return request == null ? null : request.getRequestURI();
+    }
+
+    private String ipAddress() {
+        HttpServletRequest request = request();
+        if (request == null) {
+            return null;
+        }
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private HttpServletRequest request() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            return attributes.getRequest();
+        }
+        return null;
+    }
+}
