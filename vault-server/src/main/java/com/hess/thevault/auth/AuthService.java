@@ -101,7 +101,13 @@ public class AuthService {
         }
     }
 
-    public MeResponse me(String token) {
+    public MeResponse me(String authorizationHeader) {
+        String token = resolveBearerToken(authorizationHeader);
+
+        if (!jwtService.isTokenValid(token, JwtService.TOKEN_TYPE_ACCESS)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid authentication token");
+        }
+
         return new MeResponse(
                 jwtService.extractVaultId(token),
                 jwtService.extractEmail(token),

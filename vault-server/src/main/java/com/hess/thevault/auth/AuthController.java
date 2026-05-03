@@ -58,6 +58,6 @@ public class AuthController {
 
     @GetMapping("/me")
     public MeResponse me(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
-        return authService.me(authorizationHeader.substring(7).trim());
+        return authService.me(authorizationHeader);
     }
 }

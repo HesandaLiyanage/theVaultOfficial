@@ -21,7 +21,7 @@ public class StubVaultUserRepository implements VaultUserRepository {
         this.testUser = new StubVaultUser(
                 TEST_USER_ID,
                 TEST_EMAIL,
-                passwordEncoder.encode("password12345"),
+                passwordEncoder.encode("password"),
                 "USER",
                 "stub-tenant-1"
         );
