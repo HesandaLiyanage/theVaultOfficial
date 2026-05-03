@@ -12,7 +12,7 @@
 
     <groupId>io.github.hesandaliyanage</groupId>
     <artifactId>vault</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Vault SDK</name>
@@ -112,7 +112,7 @@
                             <publishingServerId>central</publishingServerId>
                             <deploymentName>${project.groupId}:${project.artifactId}:${project.version}</deploymentName>
                             <autoPublish>false</autoPublish>
-                            <waitUntil>validated</waitUntil>
+                            <waitForPublishCompletion>true</waitForPublishCompletion>
                         </configuration>
                     </plugin>
                 </plugins>
