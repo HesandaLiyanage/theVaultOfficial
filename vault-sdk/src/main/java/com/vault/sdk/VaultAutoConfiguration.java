@@ -12,14 +12,13 @@ import com.vault.sdk.auth.AuthService;
 import com.vault.sdk.auth.JwtService;
 import com.vault.sdk.auth.TokenBlacklistService;
 import com.vault.sdk.ratelimit.RateLimitService;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -32,9 +31,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @AutoConfiguration
+@AutoConfigurationPackage
 @EnableConfigurationProperties(VaultProperties.class)
-@EnableJpaRepositories(basePackages = "com.vault.sdk")
-@EntityScan(basePackages = "com.vault.sdk")
 @EnableMethodSecurity
 @EnableAsync
 @ConditionalOnProperty(prefix = "vault.sdk", name = "enabled", havingValue = "true", matchIfMissing = true)
