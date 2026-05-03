@@ -19,6 +19,8 @@ spring:
         enabled: false
 
 vault:
+  sdk:
+    enabled: false
   internal-service-key: ${VAULT_INTERNAL_SERVICE_KEY:change-me-in-production}
   api-keys:
     rate-limit:

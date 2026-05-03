@@ -1,14 +1,16 @@
 package com.vault.sdk;
 
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 
-@Configuration
+@AutoConfiguration
 @EnableConfigurationProperties(VaultProperties.class)
-@ConditionalOnProperty(prefix = "vault", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "vault.sdk", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class VaultAutoConfiguration {
 
     @Bean
@@ -26,6 +28,14 @@ public class VaultAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public VaultAuthFilter vaultAuthFilter(VaultClient vaultClient, VaultSecurityContext vaultSecurityContext) {
-        return new VaultAuthFilter(vaultClient, vaultSecurityContext);
+        return new VaultAuthFilter(vaultClient, vaultSecurityContext, vaultClient.getProperties().getPublicPaths());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public FilterRegistrationBean<VaultAuthFilter> vaultAuthFilterRegistration(VaultAuthFilter vaultAuthFilter) {
+        FilterRegistrationBean<VaultAuthFilter> registration = new FilterRegistrationBean<>(vaultAuthFilter);
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return registration;
     }
 }
