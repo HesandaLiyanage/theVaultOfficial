@@ -3,8 +3,8 @@ CREATE TABLE api_keys (
                           key_hash     VARCHAR(255) UNIQUE NOT NULL,  -- BCrypt hash of the raw key
                           key_prefix   VARCHAR(10) NOT NULL,           -- first 8 chars for display only
                           name         VARCHAR(100) NOT NULL,          -- human label e.g. 'production'
-                          tenant_id    UUID NOT NULL,
-                          created_by   UUID NOT NULL REFERENCES users(id),
+                          tenant_id    VARCHAR(255) NOT NULL,
+                          created_by   VARCHAR(255) NOT NULL,
                           scopes       VARCHAR(255) NOT NULL,          -- READ,WRITE,DELETE
                           expires_at   TIMESTAMP,                      -- NULL = never expires
                           last_used_at TIMESTAMP,

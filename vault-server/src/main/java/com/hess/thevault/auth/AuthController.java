@@ -1,16 +1,17 @@
 package com.hess.thevault.auth;
 
 import com.hess.thevault.auth.dto.AuthResponse;
+import com.hess.thevault.auth.dto.HashPasswordRequest;
+import com.hess.thevault.auth.dto.HashPasswordResponse;
 import com.hess.thevault.auth.dto.LoginRequest;
 import com.hess.thevault.auth.dto.MeResponse;
 import com.hess.thevault.auth.dto.RefreshTokenRequest;
 import com.hess.thevault.auth.dto.RefreshTokenResponse;
-import com.hess.thevault.auth.dto.RegisterRequest;
-import com.hess.thevault.user.User;
+import com.hess.thevault.auth.dto.ValidateRegistrationRequest;
+import com.hess.thevault.auth.dto.ValidationResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,10 +30,14 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
-        return authService.register(request);
+    @PostMapping("/validate-registration")
+    public ValidationResponse validateRegistration(@Valid @RequestBody ValidateRegistrationRequest request) {
+        return authService.validateRegistration(request);
+    }
+
+    @PostMapping("/hash-password")
+    public HashPasswordResponse hashPassword(@Valid @RequestBody HashPasswordRequest request) {
+        return authService.hashPassword(request);
     }
 
     @PostMapping("/login")
@@ -52,7 +57,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public MeResponse me(@AuthenticationPrincipal User user) {
-        return authService.me(user);
+    public MeResponse me(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+        return authService.me(authorizationHeader.substring(7).trim());
     }
 }

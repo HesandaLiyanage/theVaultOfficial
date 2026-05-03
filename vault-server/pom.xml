@@ -30,6 +30,12 @@
         <java.version>21</java.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>com.vault</groupId>
+            <artifactId>vault-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Core Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

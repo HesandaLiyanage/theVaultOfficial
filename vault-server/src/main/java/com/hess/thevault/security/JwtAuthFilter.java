@@ -1,13 +1,14 @@
 package com.hess.thevault.security;
 
 import com.hess.thevault.auth.JwtService;
-import com.hess.thevault.user.UserRepository;
+import com.vault.sdk.VaultUserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -15,14 +16,15 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserRepository userRepository;
+    private final VaultUserRepository userRepository;
 
-    public JwtAuthFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtAuthFilter(JwtService jwtService, VaultUserRepository userRepository) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
     }
@@ -47,19 +49,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            var userDetails = userRepository.findById(jwtService.extractUserId(token))
+            var user = userRepository.findById(jwtService.extractVaultId(token))
                     .orElse(null);
 
-            if (userDetails == null || !userDetails.isEnabled()) {
+            if (user == null) {
                 SecurityContextHolder.clearContext();
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid authentication token");
                 return;
             }
 
             var authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails,
+                    user,
                     null,
-                    userDetails.getAuthorities()
+                    List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
             );
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);

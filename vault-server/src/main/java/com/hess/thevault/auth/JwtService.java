@@ -1,7 +1,6 @@
 package com.hess.thevault.auth;
 
-import com.hess.thevault.user.Role;
-import com.hess.thevault.user.User;
+import com.vault.sdk.VaultUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -16,12 +15,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class JwtService {
 
-    private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_VAULT_ID = "vaultId";
     private static final String CLAIM_EMAIL = "email";
     private static final String CLAIM_TENANT_ID = "tenantId";
     private static final String CLAIM_ROLE = "role";
@@ -46,11 +44,11 @@ public class JwtService {
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
-    public String generateAccessToken(User user) {
+    public String generateAccessToken(VaultUser user) {
         return generateToken(user, TOKEN_TYPE_ACCESS, accessTokenExpirationMs);
     }
 
-    public String generateRefreshToken(User user) {
+    public String generateRefreshToken(VaultUser user) {
         return generateToken(user, TOKEN_TYPE_REFRESH, refreshTokenExpirationMs);
     }
 
@@ -73,10 +71,10 @@ public class JwtService {
             }
 
             Claims claims = extractAllClaims(token);
-            requireClaim(claims, CLAIM_USER_ID);
+            requireClaim(claims, CLAIM_VAULT_ID);
             requireClaim(claims, CLAIM_EMAIL);
             requireClaim(claims, CLAIM_TENANT_ID);
-            Role.valueOf(requireClaim(claims, CLAIM_ROLE));
+            requireClaim(claims, CLAIM_ROLE);
             isRecognizedTokenType(requireClaim(claims, CLAIM_TYPE));
             return true;
         } catch (JwtException | IllegalArgumentException | DataAccessException ex) {
@@ -88,16 +86,20 @@ public class JwtService {
         return isTokenValid(token) && extractType(token).equals(expectedType);
     }
 
-    public UUID extractUserId(String token) {
-        return UUID.fromString(requiredClaim(token, CLAIM_USER_ID));
+    public String extractVaultId(String token) {
+        return requiredClaim(token, CLAIM_VAULT_ID);
     }
 
-    public UUID extractTenantId(String token) {
-        return UUID.fromString(requiredClaim(token, CLAIM_TENANT_ID));
+    public String extractUserId(String token) {
+        return extractVaultId(token);
     }
 
-    public Role extractRole(String token) {
-        return Role.valueOf(requiredClaim(token, CLAIM_ROLE));
+    public String extractTenantId(String token) {
+        return requiredClaim(token, CLAIM_TENANT_ID);
+    }
+
+    public String extractRole(String token) {
+        return requiredClaim(token, CLAIM_ROLE);
     }
 
     public String extractEmail(String token) {
@@ -117,19 +119,19 @@ public class JwtService {
         return Duration.between(Instant.now(), expiresAt.toInstant());
     }
 
-    private String generateToken(User user, String tokenType, long expirationMs) {
+    private String generateToken(VaultUser user, String tokenType, long expirationMs) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusMillis(expirationMs);
 
         return Jwts.builder()
                 .claims(Map.of(
-                        CLAIM_USER_ID, user.getId().toString(),
+                        CLAIM_VAULT_ID, user.getVaultId(),
                         CLAIM_EMAIL, user.getEmail(),
                         CLAIM_TENANT_ID, user.getTenantId().toString(),
-                        CLAIM_ROLE, user.getRole().name(),
+                        CLAIM_ROLE, user.getRole(),
                         CLAIM_TYPE, tokenType
                 ))
-                .subject(user.getId().toString())
+                .subject(user.getVaultId())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey)

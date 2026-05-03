@@ -1,22 +1,20 @@
 package com.hess.thevault.auth;
 
 import com.hess.thevault.auth.dto.AuthResponse;
+import com.hess.thevault.auth.dto.HashPasswordRequest;
+import com.hess.thevault.auth.dto.HashPasswordResponse;
 import com.hess.thevault.auth.dto.LoginRequest;
 import com.hess.thevault.auth.dto.MeResponse;
 import com.hess.thevault.auth.dto.RefreshTokenRequest;
 import com.hess.thevault.auth.dto.RefreshTokenResponse;
-import com.hess.thevault.auth.dto.RegisterRequest;
-import com.hess.thevault.user.Role;
-import com.hess.thevault.user.User;
-import com.hess.thevault.user.UserRepository;
+import com.hess.thevault.auth.dto.ValidateRegistrationRequest;
+import com.hess.thevault.auth.dto.ValidationResponse;
+import com.vault.sdk.VaultUser;
+import com.vault.sdk.VaultUserRepository;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,63 +24,50 @@ import java.util.Locale;
 @Service
 public class AuthService {
 
-    private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
-    private final UserRepository userRepository;
+    private final VaultUserRepository userRepository;
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
 
     public AuthService(
-            AuthenticationManager authenticationManager,
             PasswordEncoder passwordEncoder,
-            UserRepository userRepository,
+            VaultUserRepository userRepository,
             JwtService jwtService,
             TokenBlacklistService tokenBlacklistService
     ) {
-        this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
-    @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public ValidationResponse validateRegistration(ValidateRegistrationRequest request) {
         String email = normalizeEmail(request.email());
 
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
+        if (userRepository.findByEmail(email).isPresent()) {
+            return ValidationResponse.failure("Email is already registered");
         }
 
-        User user = new User(
-                email,
-                passwordEncoder.encode(request.password()),
-                request.tenantId(),
-                Role.USER
-        );
-
-        return toAuthResponse(userRepository.save(user));
+        return ValidationResponse.success();
     }
 
-    @Transactional(readOnly = true)
+    public HashPasswordResponse hashPassword(HashPasswordRequest request) {
+        return new HashPasswordResponse(passwordEncoder.encode(request.password()));
+    }
+
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(email, request.password())
-            );
-        } catch (AuthenticationException ex) {
+        VaultUser user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
+
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
         }
-
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
 
         return toAuthResponse(user);
     }
 
-    @Transactional(readOnly = true)
     public RefreshTokenResponse refresh(RefreshTokenRequest request) {
         String refreshToken = request.refreshToken().trim();
 
@@ -90,12 +75,8 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
 
-        User user = userRepository.findById(jwtService.extractUserId(refreshToken))
+        VaultUser user = userRepository.findById(jwtService.extractVaultId(refreshToken))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
-
-        if (!user.isEnabled()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
-        }
 
         return new RefreshTokenResponse(
                 jwtService.generateAccessToken(user),
@@ -120,24 +101,22 @@ public class AuthService {
         }
     }
 
-    public MeResponse me(User user) {
+    public MeResponse me(String token) {
         return new MeResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getTenantId(),
-                user.getRole(),
-                user.isEnabled(),
-                user.getCreatedAt()
+                jwtService.extractVaultId(token),
+                jwtService.extractEmail(token),
+                jwtService.extractTenantId(token),
+                jwtService.extractRole(token)
         );
     }
 
-    private AuthResponse toAuthResponse(User user) {
+    private AuthResponse toAuthResponse(VaultUser user) {
         return new AuthResponse(
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user),
                 "Bearer",
                 jwtService.getAccessTokenExpirationMs(),
-                user.getId(),
+                user.getVaultId(),
                 user.getTenantId(),
                 user.getEmail(),
                 user.getRole()

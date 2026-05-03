@@ -1,18 +1,14 @@
 package com.hess.thevault.auth.dto;
 
-import com.hess.thevault.user.Role;
-
-import java.util.UUID;
-
 public record AuthResponse(
         String accessToken,
         String refreshToken,
         String tokenType,
         long expiresInMs,
-        UUID userId,
-        UUID tenantId,
+        String userId,
+        String tenantId,
         String email,
-        Role role
+        String role
 ) {
     public AuthResponse {
         tokenType = tokenType == null || tokenType.isBlank() ? "Bearer" : tokenType;

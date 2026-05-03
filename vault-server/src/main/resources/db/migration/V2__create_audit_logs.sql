@@ -1,7 +1,7 @@
 CREATE TABLE audit_logs (
                             id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                            tenant_id   UUID,
-                            user_id     UUID,
+                            tenant_id   VARCHAR(255),
+                            user_id     VARCHAR(255),
                             action      VARCHAR(100) NOT NULL,   -- LOGIN, API_KEY_CREATED, RATE_LIMITED
                             resource    VARCHAR(200),            -- endpoint path
                             ip_address  VARCHAR(45),
