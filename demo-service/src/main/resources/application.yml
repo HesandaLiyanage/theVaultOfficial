@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: demo-service
+  datasource:
+    url: jdbc:postgresql://${DEMO_DB_HOST:localhost}:${DEMO_DB_PORT:5433}/${DEMO_DB_NAME:vault_demo_db}
+    username: ${DEMO_DB_USER:vault}
+    password: ${DEMO_DB_PASSWORD:vault}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate.ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: ${DEMO_SERVER_PORT:9090}
+
+vault:
+  base-url: ${VAULT_BASE_URL:http://localhost:8080}
+  service-api-key: ${VAULT_SERVICE_API_KEY:change-me-in-production}
+  public-paths:
+    - /public/**
+    - /actuator/health
+    - /users/register
