@@ -15,6 +15,8 @@ spring:
     redis:
       host: localhost
       port: 6379
+      repositories:
+        enabled: false
 
 vault:
   internal-service-key: ${VAULT_INTERNAL_SERVICE_KEY:change-me-in-production}

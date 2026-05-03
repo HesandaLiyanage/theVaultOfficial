@@ -9,6 +9,7 @@ import com.hess.thevault.auth.dto.RefreshTokenRequest;
 import com.hess.thevault.auth.dto.RefreshTokenResponse;
 import com.hess.thevault.auth.dto.ValidateRegistrationRequest;
 import com.hess.thevault.auth.dto.ValidationResponse;
+import com.hess.thevault.audit.Audited;
 import com.vault.sdk.VaultUser;
 import com.vault.sdk.VaultUserRepository;
 import org.springframework.dao.DataAccessException;
@@ -55,6 +56,7 @@ public class AuthService {
         return new HashPasswordResponse(passwordEncoder.encode(request.password()));
     }
 
+    @Audited(action = "LOGIN", resource = "/auth/login")
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
