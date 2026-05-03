@@ -8,7 +8,9 @@ public record ValidationResponse(
         String tenantId,
         String role,
         List<String> scopes,
-        String reason
+        String reason,
+        String apiKeyId,
+        String authSource
 ) {
 
     public List<String> scopes() {

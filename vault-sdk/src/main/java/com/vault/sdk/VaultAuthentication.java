@@ -42,6 +42,14 @@ public class VaultAuthentication extends AbstractAuthenticationToken {
         return validation.role();
     }
 
+    public String getApiKeyId() {
+        return validation.apiKeyId();
+    }
+
+    public String getAuthSource() {
+        return validation.authSource();
+    }
+
     public List<String> getScopes() {
         return validation.scopes();
     }
