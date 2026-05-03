@@ -19,13 +19,13 @@ Add the SDK dependency:
 
 ```xml
 <dependency>
-    <groupId>com.github.YOUR_GITHUB_USERNAME.theVault</groupId>
+    <groupId>com.github.HesandaLiyanage.theVaultOfficial</groupId>
     <artifactId>vault-sdk</artifactId>
     <version>TAG</version>
 </dependency>
 ```
 
-Replace `YOUR_GITHUB_USERNAME` and `TAG` with your GitHub owner and release tag. If your GitHub repository name is different from `theVault`, use that repository name in the JitPack group id.
+
 
 ## Minimal Setup
 
