@@ -18,9 +18,7 @@
     <name>vault</name>
 
     <modules>
-        <module>vault-server</module>
         <module>vault-sdk</module>
-        <module>demo-service</module>
     </modules>
 
     <properties>

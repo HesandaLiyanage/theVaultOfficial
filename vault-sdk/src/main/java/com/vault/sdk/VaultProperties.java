@@ -45,44 +45,6 @@ public class VaultProperties {
         this.publicPaths = publicPaths == null ? List.of() : new ArrayList<>(publicPaths);
     }
 
-    /**
-     * Legacy client-mode accessor kept so old demos/configs compile during migration.
-     */
-    public String getServerUrl() {
-        return "http://localhost:8080";
-    }
-
-    public void setServerUrl(String serverUrl) {
-        // no-op in embedded mode
-    }
-
-    /**
-     * Legacy client-mode accessor kept so old demos/configs compile during migration.
-     */
-    public String getApiKey() {
-        return null;
-    }
-
-    public void setApiKey(String apiKey) {
-        // no-op in embedded mode
-    }
-
-    public String getBaseUrl() {
-        return getServerUrl();
-    }
-
-    public void setBaseUrl(String baseUrl) {
-        // no-op in embedded mode
-    }
-
-    public String getServiceApiKey() {
-        return getApiKey();
-    }
-
-    public void setServiceApiKey(String serviceApiKey) {
-        // no-op in embedded mode
-    }
-
     public static class Sdk {
         private boolean enabled = true;
 
