@@ -21,11 +21,11 @@ Add the SDK dependency:
 <dependency>
     <groupId>com.github.HesandaLiyanage.theVaultOfficial</groupId>
     <artifactId>vault-sdk</artifactId>
-    <version>v0.1.0</version>
+    <version>TAG</version>
 </dependency>
 ```
 
-Replace `v0.1.0` with the Git tag or release version you publish.
+
 
 ## Minimal Setup
 
