@@ -2,38 +2,19 @@
 
 Embedded Spring Boot security SDK for JWT authentication, API keys, audit logging, and Redis-backed token/rate-limit state.
 
-## Install from Maven Central
+## Installation
+
+Vault SDK is available on Maven Central:
 
 ```xml
 <dependency>
     <groupId>io.github.hesandaliyanage</groupId>
     <artifactId>vault-sdk</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
 </dependency>
 ```
 
-## Install from JitPack
-
-Add JitPack:
-
-```xml
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
-```
-
-Add the SDK dependency:
-
-```xml
-<dependency>
-    <groupId>com.github.HesandaLiyanage.theVaultOfficial</groupId>
-    <artifactId>vault-sdk</artifactId>
-    <version>v0.1.0</version>
-</dependency>
-```
+Artifact: https://repo1.maven.org/maven2/io/github/hesandaliyanage/vault-sdk/
 
 ## Minimal Setup
 
