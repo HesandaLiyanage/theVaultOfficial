@@ -20,6 +20,7 @@
     <url>https://github.com/HesandaLiyanage/theVaultOfficial</url>
 
     <modules>
+        <module>vault-protocol</module>
         <module>vault-server</module>
         <module>vault-sdk</module>
     </modules>
