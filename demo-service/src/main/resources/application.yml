@@ -1,26 +1,23 @@
 spring:
   application:
     name: demo-service
-  datasource:
-    url: jdbc:postgresql://${DEMO_DB_HOST:localhost}:${DEMO_DB_PORT:5433}/${DEMO_DB_NAME:vault_demo_db}
-    username: ${DEMO_DB_USER:vault}
-    password: ${DEMO_DB_PASSWORD:vault}
-    driver-class-name: org.postgresql.Driver
-  jpa:
-    hibernate.ddl-auto: validate
-    show-sql: false
-    open-in-view: false
-  flyway:
-    enabled: true
 
 server:
-  port: ${DEMO_SERVER_PORT:9090}
+  port: ${SERVER_PORT:8080}
 
 vault:
-  jwt:
-    secret: ${VAULT_JWT_SECRET:change-me-change-me-change-me-change}
-  public-paths:
-    - /auth/**
-    - /public/**
-    - /actuator/health
-    - /users/register
+  client:
+    base-url: ${VAULT_SERVER_URL:http://localhost:8081}
+    service-key: ${VAULT_SERVICE_KEY:change-me-in-production}
+    connect-timeout: 2s
+    read-timeout: 5s
+    cache:
+      enabled: true
+      ttl: 30s
+      max-size: 10000
+  filter:
+    public-paths:
+      - /public/**
+      - /actuator/health
+  audit:
+    enabled: false   # flip to true for the demo to record audit events

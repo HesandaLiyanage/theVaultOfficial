@@ -24,6 +24,7 @@
         <module>vault-server</module>
         <module>vault-sdk</module>
         <module>vault-sdk-legacy</module>
+        <module>demo-service</module>
     </modules>
 
     <properties>
