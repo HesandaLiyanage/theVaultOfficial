@@ -1,247 +1,151 @@
-# Vault Architecture
+# Vault architecture (v0.2.0)
 
-Vault is a reusable Java security platform for Spring Boot services. It has two runtime parts:
+Vault is a Java security platform for Spring Boot services with two runtime parts and a shared wire contract.
 
-- `vault-server`: the central identity and authorization service. It owns users, API keys, JWT issuing/validation, audit logs, Redis-backed token revocation, and rate limiting.
-- `vault-sdk`: a Maven library added to any Spring Boot service. It auto-registers a servlet filter, calls `vault-server` for validation, and exposes the validated caller identity to the host application.
-
-`demo-service` is the sample consumer that proves the integration model.
-
-## System Architecture
+## Runtime parts
 
 ```mermaid
 flowchart LR
-    actor[Client / API Consumer]
-
-    subgraph consumer["Any Spring Boot Service using vault-sdk"]
-        appController["Business Controllers"]
-        appService["Business Services"]
-        sdkFilter["VaultAuthFilter<br/>OncePerRequestFilter"]
-        sdkClient["VaultClient<br/>RestClient"]
-        sdkContext["VaultSecurityContext<br/>ThreadLocal current user"]
-        appConfig["application.yml<br/>vault.server-url<br/>vault.api-key"]
-
-        sdkFilter --> sdkClient
-        sdkFilter --> sdkContext
-        sdkContext --> appController
-        appController --> appService
-        appConfig --> sdkClient
+    subgraph protocol["vault-protocol (jar)"]
+        dtos["ValidateRequest<br/>ValidateResponse<br/>AuditRequest<br/>TokenType"]
     end
 
-    subgraph vaultServer["vault-server"]
-        publicAuth["Public Auth API<br/>/auth/register<br/>/auth/login<br/>/auth/refresh<br/>/auth/logout<br/>/auth/me"]
-        internalApi["Internal SDK API<br/>POST /internal/validate<br/>POST /internal/audit"]
-        apiKeyApi["API Key API<br/>/api-keys<br/>/admin/api-keys"]
-        jwtService["JwtService<br/>HS256 access + refresh tokens"]
-        userService["UserDetailsService<br/>user lookup + roles"]
-        auditService["Audit Service / AOP"]
-        rateLimit["Rate Limit Service<br/>token bucket"]
+    subgraph sdk["vault-sdk (jar) — consumer app"]
+        filter["VaultAuthFilter"]
+        client["VaultClient<br/>(RestClient)"]
+        cache["CachingVaultClient<br/>(Caffeine, optional)"]
+        jwks["JwksTokenValidator<br/>(nimbus-jose-jwt, optional)"]
+        audit["VaultAuditClient<br/>(async)"]
     end
 
-    subgraph data["Vault-owned Data Stores"]
-        postgres[("PostgreSQL<br/>users<br/>api_keys<br/>audit_logs")]
-        redis[("Redis<br/>JWT blacklist<br/>rate-limit buckets")]
+    subgraph server["vault-server (Spring Boot service)"]
+        internal["InternalController<br/>/internal/validate<br/>/internal/audit"]
+        jwksEp["JwksController<br/>/.well-known/jwks.json"]
+        auth["AuthController<br/>/auth/*"]
+        keys["ApiKeyService"]
+        jwt["JwtService (RS256)"]
+        bl["TokenBlacklistService"]
+        auditSvc["AuditService"]
+        rate["RateLimitService"]
     end
 
-    actor -- "1. login/register" --> publicAuth
-    publicAuth --> jwtService
-    publicAuth --> userService
-    userService --> postgres
-    jwtService --> redis
-    publicAuth -- "2. returns JWT" --> actor
-
-    actor -- "3. request with Authorization: Bearer JWT<br/>or X-API-Key" --> sdkFilter
-    sdkClient -- "4. service-to-service validation<br/>X-Vault-Api-Key" --> internalApi
-    internalApi --> jwtService
-    internalApi --> userService
-    internalApi --> rateLimit
-    internalApi --> redis
-    internalApi --> postgres
-    internalApi -- "5. valid + userId + tenantId + role + scopes" --> sdkClient
-    sdkFilter -- "6. continue request" --> appController
-    sdkClient -. "7. async audit event" .-> internalApi
-    internalApi --> auditService
-    auditService --> postgres
-
-    apiKeyApi --> postgres
+    client -. uses .-> dtos
+    cache -. wraps .-> client
+    jwks -. wraps .-> client
+    filter --> cache
+    filter --> jwks
+    filter --> client
+    audit -. uses .-> dtos
+    internal -. uses .-> dtos
+    internal --> jwt
+    internal --> keys
+    internal --> auditSvc
+    jwksEp --> jwt
+    auth --> jwt
+    auth --> bl
+    keys --> rate
 ```
 
-## SDK Integration Flow
+- `vault-protocol` is a pure-Java jar containing only the DTOs that travel on the wire. Both server and SDK depend on it directly, so the wire contract has a single source of truth.
+- `vault-sdk` is what consumer apps embed. Thin HTTP client + auth filter. Optional caching and JWKS validation are opt-in via config.
+- `vault-server` is a standalone Spring Boot application. It owns all state — users, API keys, audit logs, the token blacklist, rate-limit counters.
+
+## Wire contract
+
+| Endpoint                          | Auth                | Purpose                                                        |
+|-----------------------------------|---------------------|----------------------------------------------------------------|
+| `POST /internal/validate`         | `X-Service-Key`     | Validate a JWT or API key. Returns vault id, tenant, role, scopes. |
+| `POST /internal/audit`            | `X-Service-Key`     | Record an audit event (fire-and-forget, returns 202).         |
+| `GET  /.well-known/jwks.json`     | none (public key)   | RSA public key for JWKS local-verify mode.                    |
+| `POST /auth/register`             | none                | Register a new user. Returns the persisted vault id.          |
+| `POST /auth/login`                | none                | Issue access (`RS256`, kid=vault-default) + refresh tokens.   |
+| `POST /auth/refresh`              | none                | Exchange a refresh token for a new access token.              |
+| `POST /auth/logout`               | Bearer              | Blacklist the current access token (Redis-backed).            |
+
+The `/internal/*` endpoints use the DTOs defined in `vault-protocol`. The `/auth/*` endpoints are user-facing and serialize their own JSON (currently in `vault-server`'s `auth.dto` package).
+
+## Validation modes
+
+The SDK exposes one `TokenValidator` interface; the autoconfig composes implementations based on properties.
+
+```mermaid
+flowchart TB
+    incoming["VaultAuthFilter.doFilterInternal"]
+    incoming --> kind{"Bearer or<br/>X-API-Key?"}
+    kind -- X-API-Key --> remote
+    kind -- Bearer --> jwksMode{"vault.client.jwks.uri<br/>set?"}
+    jwksMode -- no --> cacheMode
+    jwksMode -- yes --> verifyLocal["JwksTokenValidator<br/>verify signature with JWKS"]
+    verifyLocal --> revoke{"skip-remote-<br/>revocation-check?"}
+    revoke -- yes --> ok["Build ValidateResponse<br/>from claims, return"]
+    revoke -- no --> cacheMode
+    cacheMode{{"vault.client.cache.enabled?"}}
+    cacheMode -- yes --> caffeine["CachingVaultClient.getIfPresent"]
+    caffeine -- hit --> ok
+    caffeine -- miss --> remote
+    cacheMode -- no --> remote["VaultClient.validate<br/>POST /internal/validate"]
+    remote --> ok
+```
+
+- **API keys** always go remote — there is no local verification path for opaque credentials.
+- **JWTs** can be verified locally if a JWKS URI is configured. Local verification only catches signature and standard-claim problems; revocation is still a remote check unless explicitly skipped.
+
+## Sequence: end-to-end request
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Client
-    participant Service as Consumer Spring Boot Service
-    participant Filter as vault-sdk VaultAuthFilter
-    participant ClientSdk as vault-sdk VaultClient
-    participant Vault as vault-server
-    participant Redis
-    participant Postgres
-    participant Controller as Business Controller
+    actor C as Client
+    participant F as VaultAuthFilter
+    participant TV as TokenValidator
+    participant VS as vault-server
+    participant CTL as Consumer @Controller
+    participant AD as VaultAuditClient
+    participant Q as audit queue
+    participant W as audit worker
 
-    Client->>Service: HTTP request with Bearer JWT or X-API-Key
-    Service->>Filter: Servlet filter chain enters SDK
-    Filter->>Filter: Skip public paths, otherwise extract credential
-    Filter->>ClientSdk: validateToken(token) or validateApiKey(key)
-    ClientSdk->>Vault: POST /internal/validate<br/>X-Vault-Api-Key: service key
-    Vault->>Vault: Verify JWT signature, expiry, type, role, scopes
-    Vault->>Redis: Check blacklist and rate-limit keys
-    Vault->>Postgres: Load user/API-key metadata when needed
-    Vault-->>ClientSdk: { valid, userId, tenantId, role, scopes }
-    ClientSdk-->>Filter: VaultUser / VaultPrincipal
-    Filter->>Service: Populate VaultSecurityContext and Spring SecurityContext
-    Service->>Controller: Continue filter chain
-    Controller-->>Client: Business response
-    ClientSdk--)Vault: POST /internal/audit with request outcome
-    Vault->>Postgres: Insert audit_logs row
-```
-
-## How Components Should Communicate
-
-### 1. Consumer application to `vault-sdk`
-
-The host service should communicate with the SDK through Spring, not by manually wiring HTTP calls.
-
-- Add `vault-sdk` as a Maven dependency.
-- Configure the SDK with Vault server URL and a service-to-service API key.
-- Let Spring Boot auto-configuration create `VaultClient`, `VaultAuthFilter`, and `VaultSecurityContext`.
-- Controllers and services read the current identity from `VaultSecurityContext` or Spring Security's `SecurityContextHolder`.
-
-Recommended consumer config:
-
-```yaml
-vault:
-  enabled: true
-  server-url: http://vault-server:8081
-  api-key: vault_service_key_issued_by_vault_server
-```
-
-The implementation guide names these properties as `vault.base-url` and `vault.service-api-key`. The current code uses `vault.server-url` and `vault.api-key` in `VaultProperties`, so either the guide or the property class should be aligned before publishing the SDK.
-
-### 2. `vault-sdk` to `vault-server`
-
-The SDK should be the only part of the consumer service that talks to `vault-server`.
-
-- `VaultAuthFilter` extracts the incoming caller credential.
-- `VaultClient` sends validation requests to `vault-server`.
-- Every SDK-to-server request includes the consumer service API key in `X-Vault-Api-Key`.
-- `vault-server` treats `/internal/**` as service-to-service endpoints, separate from user-facing authentication.
-
-Recommended validation contract:
-
-```http
-POST /internal/validate
-X-Vault-Api-Key: vault_service_key_issued_by_vault_server
-Content-Type: application/json
-
-{
-  "token": "jwt_or_api_key",
-  "type": "JWT"
-}
-```
-
-Recommended response:
-
-```json
-{
-  "valid": true,
-  "userId": "uuid",
-  "tenantId": "uuid",
-  "email": "user@example.com",
-  "role": "USER",
-  "scopes": ["READ", "WRITE"]
-}
-```
-
-### 3. `vault-server` to PostgreSQL
-
-Only `vault-server` owns security data.
-
-- `users`: user identity, BCrypt password hash, tenant, role, enabled flag.
-- `api_keys`: BCrypt-hashed API keys, key prefix, scopes, expiry, revoke state, tenant ownership.
-- `audit_logs`: cross-service audit trail with tenant, user, action, resource, status, metadata.
-
-Consumer services should not create or duplicate these tables. Their databases stay focused on business data.
-
-### 4. `vault-server` to Redis
-
-Redis is used for fast, TTL-based security state:
-
-- `blacklist:{token}`: revoked JWTs after logout until original token expiry.
-- `ratelimit:{tenantId}:{keyId}:tokens`: token bucket count.
-- `ratelimit:{tenantId}:{keyId}:reset`: reset timestamp for `Retry-After`.
-
-The SDK does not need direct Redis access. Keeping Redis behind `vault-server` prevents every consumer service from needing security infrastructure credentials.
-
-### 5. Audit communication
-
-After each protected request, the SDK should send an asynchronous audit event to `vault-server`.
-
-```http
-POST /internal/audit
-X-Vault-Api-Key: vault_service_key_issued_by_vault_server
-Content-Type: application/json
-
-{
-  "tenantId": "uuid",
-  "userId": "uuid",
-  "action": "HTTP_REQUEST",
-  "resource": "GET /orders/123",
-  "status": "SUCCESS",
-  "metadata": {
-    "service": "orders-service",
-    "durationMs": 42
-  }
-}
-```
-
-Audit should be best effort: a failed audit write must not break the business request unless the product explicitly requires strict compliance mode.
-
-## Runtime Boundaries
-
-```mermaid
-flowchart TB
-    subgraph build["Build-time / dependency relationship"]
-        root["vault parent pom"]
-        sdkArtifact["vault-sdk Maven artifact"]
-        demo["demo-service"]
-        root --> sdkArtifact
-        root --> demo
-        demo --> sdkArtifact
+    C->>F: GET /orders<br/>Authorization: Bearer eyJ...
+    F->>F: match public-paths?
+    F->>TV: validate(token, JWT)
+    TV->>VS: POST /internal/validate<br/>X-Service-Key
+    VS-->>TV: ValidateResponse(valid=true, …)
+    TV-->>F: ValidateResponse
+    F->>F: SecurityContextHolder.setAuthentication(<br/>  new VaultAuthenticationToken(principal)<br/>)
+    F->>CTL: chain.doFilter
+    CTL->>AD: record(AuditRequest)
+    AD->>Q: queue.offer (non-blocking)
+    AD-->>CTL: return
+    CTL-->>F: ResponseEntity
+    F->>F: SecurityContextHolder.clearContext()
+    F-->>C: 200 OK
+    par async
+        W->>Q: poll
+        W->>VS: POST /internal/audit<br/>X-Service-Key
+        VS-->>W: 202 Accepted
     end
-
-    subgraph runtime["Runtime / network relationship"]
-        consumer["Consumer service JVM<br/>includes vault-sdk jar"]
-        auth["vault-server JVM"]
-        pg[("PostgreSQL")]
-        rd[("Redis")]
-
-        consumer -- "HTTP internal validation/audit" --> auth
-        auth --> pg
-        auth --> rd
-    end
-
-    sdkArtifact -. "packaged into" .-> consumer
 ```
 
-## Current Repo vs Target Architecture
+## Failure modes
 
-The current project already contains:
+- **vault-server unreachable.** `VaultClient.validate` catches `ResourceAccessException` and returns `ValidateResponse.failure("vault-server unreachable")`. The filter maps that to 401. The caching layer deliberately does **not** cache this response, so a brief outage doesn't poison the cache.
+- **vault-server returns 5xx.** Same as above but the failure reason mentions the status code. Same 401 outcome.
+- **vault-server returns 401 (bad service key).** Treated as a configuration error: 401 surfaces to the client, log line names the misconfiguration.
+- **Audit queue full.** Oldest events not yet drained are kept; the new event is dropped and a WARN is logged. Request threads never block on the audit channel.
+- **Server restart in v0.2.0.** RSA keypair is regenerated, so all JWTs issued before the restart fail signature verification. Persistent keys are planned for v0.2.1 (see `docs/redesign-v2.md`).
 
-- Maven modules for `vault-server`, `vault-sdk`, and `demo-service`.
-- SDK auto-configuration registration via `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
-- `VaultAuthFilter`, `VaultClient`, `VaultProperties`, and `VaultSecurityContext`.
-- JWT creation and validation logic in `vault-server`.
-- PostgreSQL migrations for `users`, `api_keys`, and `audit_logs`.
-- Redis and PostgreSQL services in `docker-compose.yml`.
+## Module layout
 
-The guide-level architecture still needs these implementation pieces:
-
-- `/internal/validate` endpoint in `vault-server`.
-- `/internal/audit` endpoint in `vault-server`.
-- API key generation, hashing, validation, scope enforcement, and revocation services.
-- Redis-backed JWT blacklist and rate limiting.
-- SDK support for `X-API-Key`, public path skipping, scope/role mapping into Spring Security, and async audit dispatch.
-- Alignment between guide property names and current `VaultProperties`.
-
+```
+theVaultOfficial/
+├── vault-protocol/     pure-Java DTOs
+├── vault-server/       Spring Boot service
+├── vault-sdk/          thin client
+├── vault-sdk-legacy/   v0.1.x classes (@Deprecated, removed in v0.3.0)
+├── demo-service/       example consumer
+├── docs/
+│   ├── architecture.md          (this file)
+│   ├── redesign-v2.md           rationale for the v0.2 design
+│   ├── release-cadence.md       release policy
+│   └── maven-central-publishing.md
+└── docker-compose.yml  Postgres + Redis for vault-server
+```
