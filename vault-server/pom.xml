@@ -14,6 +14,11 @@
     <name>Vault Server</name>
     <description>Standalone Spring Boot service that issues JWTs, manages API keys, records audit events, and enforces rate limits for consumer apps via the vault-sdk client.</description>
 
+    <properties>
+        <!-- Runnable application, not a library — never publish to Central. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.github.hesandaliyanage</groupId>

@@ -14,6 +14,11 @@
     <name>Vault demo-service</name>
     <description>Example consumer of vault-sdk. Protects its own endpoints by delegating validation to a running vault-server.</description>
 
+    <properties>
+        <!-- Example app, not a library — never publish to Central. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.github.hesandaliyanage</groupId>
