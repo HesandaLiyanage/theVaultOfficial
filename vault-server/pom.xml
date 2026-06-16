@@ -15,6 +15,12 @@
     <description>Standalone Spring Boot service that issues JWTs, manages API keys, records audit events, and enforces rate limits for consumer apps via the vault-sdk client.</description>
 
     <dependencies>
+        <dependency>
+            <groupId>io.github.hesandaliyanage</groupId>
+            <artifactId>vault-protocol</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Core Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

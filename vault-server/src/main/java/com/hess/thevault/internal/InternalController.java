@@ -4,10 +4,10 @@ import com.hess.thevault.apikey.ApiKeyService;
 import com.hess.thevault.audit.AuditRecord;
 import com.hess.thevault.audit.AuditService;
 import com.hess.thevault.auth.JwtService;
-import com.hess.thevault.internal.dto.InternalAuditRequest;
-import com.hess.thevault.internal.dto.InternalTokenType;
-import com.hess.thevault.internal.dto.InternalValidateRequest;
-import com.hess.thevault.internal.dto.InternalValidateResponse;
+import io.github.hesandaliyanage.vault.protocol.AuditRequest;
+import io.github.hesandaliyanage.vault.protocol.TokenType;
+import io.github.hesandaliyanage.vault.protocol.ValidateRequest;
+import io.github.hesandaliyanage.vault.protocol.ValidateResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,27 +49,27 @@ public class InternalController {
     }
 
     @PostMapping("/validate")
-    public InternalValidateResponse validate(
+    public ValidateResponse validate(
             @RequestHeader(value = SERVICE_KEY_HEADER, required = false) String serviceKey,
-            @Valid @RequestBody InternalValidateRequest request
+            @Valid @RequestBody ValidateRequest request
     ) {
         requireServiceKey(serviceKey);
 
-        if (request.type() == InternalTokenType.JWT) {
+        if (request.type() == TokenType.JWT) {
             return validateJwt(request.token());
         }
-        if (request.type() == InternalTokenType.API_KEY) {
+        if (request.type() == TokenType.API_KEY) {
             return validateApiKey(request.token());
         }
 
-        return InternalValidateResponse.failure("Unsupported token type");
+        return ValidateResponse.failure("Unsupported token type");
     }
 
     @PostMapping("/audit")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void audit(
             @RequestHeader(value = SERVICE_KEY_HEADER, required = false) String serviceKey,
-            @Valid @RequestBody InternalAuditRequest request,
+            @Valid @RequestBody AuditRequest request,
             HttpServletRequest servletRequest
     ) {
         requireServiceKey(serviceKey);
@@ -85,12 +85,12 @@ public class InternalController {
         ));
     }
 
-    private InternalValidateResponse validateJwt(String token) {
+    private ValidateResponse validateJwt(String token) {
         if (!jwtService.isTokenValid(token, JwtService.TOKEN_TYPE_ACCESS)) {
-            return InternalValidateResponse.failure("Invalid JWT");
+            return ValidateResponse.failure("Invalid JWT");
         }
 
-        return InternalValidateResponse.success(
+        return ValidateResponse.success(
                 jwtService.extractVaultId(token),
                 jwtService.extractTenantId(token),
                 jwtService.extractRole(token),
@@ -98,13 +98,13 @@ public class InternalController {
         );
     }
 
-    private InternalValidateResponse validateApiKey(String rawKey) {
+    private ValidateResponse validateApiKey(String rawKey) {
         var result = apiKeyService.validateRawKey(rawKey);
         if (!result.valid()) {
-            return InternalValidateResponse.failure(result.reason());
+            return ValidateResponse.failure(result.reason());
         }
 
-        return InternalValidateResponse.success(
+        return ValidateResponse.success(
                 result.createdBy(),
                 result.tenantId(),
                 "API_KEY",
