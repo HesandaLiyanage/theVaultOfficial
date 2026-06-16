@@ -17,6 +17,7 @@
     <properties>
         <!-- Runnable application, not a library — never publish to Central. -->
         <maven.deploy.skip>true</maven.deploy.skip>
+        <skipPublishing>true</skipPublishing>
     </properties>
 
     <dependencies>
