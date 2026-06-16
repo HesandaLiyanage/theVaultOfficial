@@ -28,7 +28,8 @@ vault:
       window-seconds: ${VAULT_API_KEY_RATE_LIMIT_WINDOW_SECONDS:60}
 
 jwt:
-  secret: your-256-bit-secret-key-here-change-in-production
+  # v0.2.0 generates a fresh RSA-2048 keypair at startup. Persistent keys
+  # land in v0.2.1; until then a server restart invalidates all tokens.
   expiration-ms: 900000          # 15 minutes
   refresh-expiration-ms: 604800000  # 7 days
 

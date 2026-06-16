@@ -1,16 +1,19 @@
 package com.hess.thevault.auth;
 
-import com.hess.thevault.auth.VaultUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -19,6 +22,8 @@ import java.util.Map;
 @Service
 public class JwtService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+
     private static final String CLAIM_VAULT_ID = "vaultId";
     private static final String CLAIM_EMAIL = "email";
     private static final String CLAIM_TENANT_ID = "tenantId";
@@ -26,22 +31,36 @@ public class JwtService {
     private static final String CLAIM_TYPE = "type";
     public static final String TOKEN_TYPE_ACCESS = "ACCESS";
     public static final String TOKEN_TYPE_REFRESH = "REFRESH";
+    public static final String DEFAULT_KEY_ID = "vault-default";
 
-    private final SecretKey signingKey;
+    private final RSAPrivateKey privateKey;
+    private final RSAPublicKey publicKey;
+    private final String keyId;
     private final long accessTokenExpirationMs;
     private final long refreshTokenExpirationMs;
     private final TokenBlacklistService tokenBlacklistService;
 
     public JwtService(
-            @Value("${jwt.secret}") String jwtSecret,
             @Value("${jwt.expiration-ms}") long accessTokenExpirationMs,
             @Value("${jwt.refresh-expiration-ms}") long refreshTokenExpirationMs,
             TokenBlacklistService tokenBlacklistService
     ) {
-        this.signingKey = buildSigningKey(jwtSecret);
+        KeyPair keyPair = generateRsaKeyPair();
+        this.privateKey = (RSAPrivateKey) keyPair.getPrivate();
+        this.publicKey = (RSAPublicKey) keyPair.getPublic();
+        this.keyId = DEFAULT_KEY_ID;
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
         this.tokenBlacklistService = tokenBlacklistService;
+        log.warn("JwtService generated an ephemeral RSA keypair at startup. Tokens issued by this instance will not validate after a restart. Configure a persistent key for production (planned for v0.2.1).");
+    }
+
+    public RSAPublicKey getPublicKey() {
+        return publicKey;
+    }
+
+    public String getKeyId() {
+        return keyId;
     }
 
     public String generateAccessToken(VaultUser user) {
@@ -58,7 +77,7 @@ public class JwtService {
 
     public Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(signingKey)
+                .verifyWith(publicKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -124,6 +143,7 @@ public class JwtService {
         Instant expiresAt = now.plusMillis(expirationMs);
 
         return Jwts.builder()
+                .header().keyId(keyId).and()
                 .claims(Map.of(
                         CLAIM_VAULT_ID, user.getVaultId(),
                         CLAIM_EMAIL, user.getEmail(),
@@ -134,7 +154,7 @@ public class JwtService {
                 .subject(user.getVaultId())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
-                .signWith(signingKey)
+                .signWith(privateKey, Jwts.SIG.RS256)
                 .compact();
     }
 
@@ -156,16 +176,13 @@ public class JwtService {
         }
     }
 
-    private SecretKey buildSigningKey(String jwtSecret) {
-        if (jwtSecret == null || jwtSecret.isBlank()) {
-            throw new IllegalStateException("JWT secret must be configured");
+    private static KeyPair generateRsaKeyPair() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            return generator.generateKeyPair();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("RSA not available", e);
         }
-
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
-            throw new IllegalStateException("JWT secret must be at least 256 bits for HS256");
-        }
-
-        return Keys.hmacShaKeyFor(keyBytes);
     }
 }
