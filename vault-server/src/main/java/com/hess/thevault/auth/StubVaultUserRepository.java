@@ -1,7 +1,5 @@
 package com.hess.thevault.auth;
 
-import com.vault.sdk.VaultUser;
-import com.vault.sdk.VaultUserRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;

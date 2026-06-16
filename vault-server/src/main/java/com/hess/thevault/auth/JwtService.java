@@ -1,6 +1,6 @@
 package com.hess.thevault.auth;
 
-import com.vault.sdk.VaultUser;
+import com.hess.thevault.auth.VaultUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;

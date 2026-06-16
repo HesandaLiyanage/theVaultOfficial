@@ -6,7 +6,7 @@ import com.hess.thevault.apikey.dto.GenerateApiKeyResponse;
 import com.hess.thevault.audit.Audited;
 import com.hess.thevault.ratelimit.RateLimitResult;
 import com.hess.thevault.ratelimit.RateLimitService;
-import com.vault.sdk.VaultUser;
+import com.hess.thevault.auth.VaultUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

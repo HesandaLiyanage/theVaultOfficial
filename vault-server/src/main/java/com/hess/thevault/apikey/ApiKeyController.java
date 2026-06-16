@@ -3,7 +3,7 @@ package com.hess.thevault.apikey;
 import com.hess.thevault.apikey.dto.ApiKeyResponse;
 import com.hess.thevault.apikey.dto.GenerateApiKeyRequest;
 import com.hess.thevault.apikey.dto.GenerateApiKeyResponse;
-import com.vault.sdk.VaultUser;
+import com.hess.thevault.auth.VaultUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;

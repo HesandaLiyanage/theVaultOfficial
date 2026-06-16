@@ -2,40 +2,19 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.6</version>
-        <relativePath/> <!-- lookup parent from repository -->
-    </parent>
-    <groupId>com.hess</groupId>
-    <artifactId>theVault</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>theVault</name>
-    <description>theVault</description>
-    <url/>
-    <licenses>
-        <license/>
-    </licenses>
-    <developers>
-        <developer/>
-    </developers>
-    <scm>
-        <connection/>
-        <developerConnection/>
-        <tag/>
-        <url/>
-    </scm>
-    <properties>
-        <java.version>21</java.version>
-    </properties>
-    <dependencies>
-        <dependency>
-            <groupId>com.vault</groupId>
-            <artifactId>vault-sdk</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
+    <parent>
+        <groupId>io.github.hesandaliyanage</groupId>
+        <artifactId>vault</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>vault-server</artifactId>
+    <name>Vault Server</name>
+    <description>Standalone Spring Boot service that issues JWTs, manages API keys, records audit events, and enforces rate limits for consumer apps via the vault-sdk client.</description>
+
+    <dependencies>
         <!-- Core Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

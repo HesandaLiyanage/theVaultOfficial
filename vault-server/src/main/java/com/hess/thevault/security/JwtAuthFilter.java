@@ -1,7 +1,7 @@
 package com.hess.thevault.security;
 
 import com.hess.thevault.auth.JwtService;
-import com.vault.sdk.VaultUserRepository;
+import com.hess.thevault.auth.VaultUserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
