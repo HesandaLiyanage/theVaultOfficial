@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+@Deprecated(since = "0.2.0", forRemoval = true)
 public class VaultAuthentication extends AbstractAuthenticationToken {
 
     private final ValidationResponse validation;

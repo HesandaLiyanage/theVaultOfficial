@@ -5,6 +5,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.UUID;
 
+@Deprecated(since = "0.2.0", forRemoval = true)
 public class VaultSecurityContext {
 
     public void setAuthentication(VaultAuthentication authentication) {

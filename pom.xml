@@ -23,6 +23,7 @@
         <module>vault-protocol</module>
         <module>vault-server</module>
         <module>vault-sdk</module>
+        <module>vault-sdk-legacy</module>
     </modules>
 
     <properties>

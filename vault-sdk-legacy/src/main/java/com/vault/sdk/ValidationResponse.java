@@ -2,6 +2,7 @@ package com.vault.sdk;
 
 import java.util.List;
 
+@Deprecated(since = "0.2.0", forRemoval = true)
 public record ValidationResponse(
         boolean valid,
         String userId,

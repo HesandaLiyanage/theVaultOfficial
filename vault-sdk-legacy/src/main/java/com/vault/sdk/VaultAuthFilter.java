@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+@Deprecated(since = "0.2.0", forRemoval = true)
 public class VaultAuthFilter extends OncePerRequestFilter {
 
     private static final String AUTH_SOURCE_JWT = "JWT";

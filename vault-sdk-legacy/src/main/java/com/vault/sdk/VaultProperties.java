@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @ConfigurationProperties(prefix = "vault")
+@Deprecated(since = "0.2.0", forRemoval = true)
 public class VaultProperties {
 
     private final Sdk sdk = new Sdk();

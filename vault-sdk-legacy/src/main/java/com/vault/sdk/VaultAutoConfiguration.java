@@ -38,6 +38,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 @EnableAsync
 @ConditionalOnProperty(prefix = "vault.sdk", name = "enabled", havingValue = "true", matchIfMissing = true)
+@Deprecated(since = "0.2.0", forRemoval = true)
 public class VaultAutoConfiguration {
 
     @Bean
