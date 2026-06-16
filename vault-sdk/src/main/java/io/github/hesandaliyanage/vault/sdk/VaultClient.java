@@ -18,7 +18,7 @@ import org.springframework.web.client.RestClientResponseException;
  * exceptions so the auth filter can map them to a 401 without special-casing
  * transport problems.
  */
-public class VaultClient {
+public class VaultClient implements TokenValidator {
 
     private static final Logger log = LoggerFactory.getLogger(VaultClient.class);
     private static final String SERVICE_KEY_HEADER = "X-Service-Key";

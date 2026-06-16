@@ -1,0 +1,37 @@
+package io.github.hesandaliyanage.vault.sdk;
+
+import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * Tuning for the in-memory cache that sits in front of {@link VaultClient}.
+ *
+ * <pre>
+ * vault:
+ *   client:
+ *     cache:
+ *       enabled: true
+ *       ttl: 30s
+ *       max-size: 10000
+ * </pre>
+ *
+ * <p>Disabled by default for safety — turning it on is an explicit decision
+ * that accepts at most {@code ttl} of staleness between a token being
+ * revoked on the server and the SDK noticing.
+ */
+@ConfigurationProperties(prefix = "vault.client.cache")
+public record VaultCacheProperties(
+        boolean enabled,
+        Duration ttl,
+        long maxSize
+) {
+
+    public VaultCacheProperties {
+        if (ttl == null) {
+            ttl = Duration.ofSeconds(30);
+        }
+        if (maxSize <= 0) {
+            maxSize = 10_000L;
+        }
+    }
+}
