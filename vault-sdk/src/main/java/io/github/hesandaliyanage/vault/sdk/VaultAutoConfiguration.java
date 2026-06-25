@@ -1,5 +1,7 @@
 package io.github.hesandaliyanage.vault.sdk;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -44,6 +46,7 @@ public class VaultAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(name = "vaultRestClient")
     public RestClient vaultRestClient(VaultClientProperties properties) {
+        requireSecureUrl("vault.client.base-url", properties.baseUrl(), properties.allowInsecureHttp());
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.connectTimeout());
         requestFactory.setReadTimeout(properties.readTimeout());
@@ -66,6 +69,7 @@ public class VaultAutoConfiguration {
             validator = new CachingVaultClient(validator, cacheProperties);
         }
         if (jwksProperties.uri() != null) {
+            requireSecureUrl("vault.client.jwks.uri", jwksProperties.uri().toString(), clientProperties.allowInsecureHttp());
             validator = new JwksTokenValidator(
                     jwksProperties.uri(),
                     validator,
@@ -73,6 +77,32 @@ public class VaultAutoConfiguration {
             );
         }
         return validator;
+    }
+
+    private static void requireSecureUrl(String propertyName, String url, boolean allowInsecureHttp) {
+        if (url == null || url.isBlank()) {
+            throw new IllegalStateException(propertyName + " must be configured");
+        }
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException(propertyName + " is not a valid URI: " + url, e);
+        }
+        String scheme = uri.getScheme();
+        if (scheme == null) {
+            throw new IllegalStateException(propertyName + " must include a scheme (https:// or http://): " + url);
+        }
+        scheme = scheme.toLowerCase(java.util.Locale.ROOT);
+        if ("https".equals(scheme)) {
+            return;
+        }
+        if ("http".equals(scheme) && allowInsecureHttp) {
+            return;
+        }
+        throw new IllegalStateException(propertyName + " uses scheme '" + scheme
+                + "'. Only https is permitted by default; set vault.client.allow-insecure-http=true"
+                + " to permit http:// (only safe for localhost/dev).");
     }
 
     @Bean

@@ -22,7 +22,7 @@ class VaultAutoConfigurationTest {
     @Test
     void autoConfigWiresFilterWhenBaseUrlSet() {
         runner.withPropertyValues(
-                "vault.client.base-url=http://vault.test",
+                "vault.client.base-url=https://vault.test",
                 "vault.client.service-key=k"
         ).run(ctx -> {
             assertThat(ctx).hasSingleBean(VaultAuthFilter.class);
@@ -35,7 +35,7 @@ class VaultAutoConfigurationTest {
     @Test
     void cachingValidatorIsWiredWhenCacheEnabled() {
         runner.withPropertyValues(
-                "vault.client.base-url=http://vault.test",
+                "vault.client.base-url=https://vault.test",
                 "vault.client.service-key=k",
                 "vault.client.cache.enabled=true"
         ).run(ctx -> {
@@ -46,9 +46,9 @@ class VaultAutoConfigurationTest {
     @Test
     void jwksValidatorIsWiredWhenJwksUriSet() {
         runner.withPropertyValues(
-                "vault.client.base-url=http://vault.test",
+                "vault.client.base-url=https://vault.test",
                 "vault.client.service-key=k",
-                "vault.client.jwks.uri=http://vault.test/.well-known/jwks.json"
+                "vault.client.jwks.uri=https://vault.test/.well-known/jwks.json"
         ).run(ctx -> {
             assertThat(ctx.getBean(TokenValidator.class)).isInstanceOf(JwksTokenValidator.class);
         });
@@ -57,11 +57,53 @@ class VaultAutoConfigurationTest {
     @Test
     void auditClientIsWiredWhenEnabled() {
         runner.withPropertyValues(
-                "vault.client.base-url=http://vault.test",
+                "vault.client.base-url=https://vault.test",
                 "vault.client.service-key=k",
                 "vault.audit.enabled=true"
         ).run(ctx -> {
             assertThat(ctx).hasSingleBean(VaultAuditClient.class);
+        });
+    }
+
+    @Test
+    void plainHttpBaseUrlIsRejectedByDefault() {
+        runner.withPropertyValues(
+                "vault.client.base-url=http://vault.test",
+                "vault.client.service-key=k"
+        ).run(ctx -> {
+            assertThat(ctx).hasFailed();
+            assertThat(ctx.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("vault.client.base-url")
+                    .hasMessageContaining("https");
+        });
+    }
+
+    @Test
+    void plainHttpBaseUrlIsAcceptedWhenAllowInsecureHttpEnabled() {
+        runner.withPropertyValues(
+                "vault.client.base-url=http://vault.test",
+                "vault.client.service-key=k",
+                "vault.client.allow-insecure-http=true"
+        ).run(ctx -> {
+            assertThat(ctx).hasNotFailed();
+            assertThat(ctx).hasSingleBean(VaultAuthFilter.class);
+        });
+    }
+
+    @Test
+    void plainHttpJwksUriIsRejectedByDefault() {
+        runner.withPropertyValues(
+                "vault.client.base-url=https://vault.test",
+                "vault.client.service-key=k",
+                "vault.client.jwks.uri=http://vault.test/.well-known/jwks.json"
+        ).run(ctx -> {
+            assertThat(ctx).hasFailed();
+            assertThat(ctx.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("vault.client.jwks.uri");
         });
     }
 }

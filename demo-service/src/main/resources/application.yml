@@ -9,6 +9,10 @@ vault:
   client:
     base-url: ${VAULT_SERVER_URL:http://localhost:8081}
     service-key: ${VAULT_SERVICE_KEY:change-me-in-production}
+    # Local-dev only: vault-server runs on plain HTTP on localhost.
+    # In any other environment this MUST be false (the default) so the
+    # SDK refuses to send the service-key over cleartext HTTP.
+    allow-insecure-http: true
     connect-timeout: 2s
     read-timeout: 5s
     cache:
