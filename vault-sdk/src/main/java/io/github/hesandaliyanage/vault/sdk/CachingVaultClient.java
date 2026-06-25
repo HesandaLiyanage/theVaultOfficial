@@ -2,8 +2,10 @@ package io.github.hesandaliyanage.vault.sdk;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 import io.github.hesandaliyanage.vault.protocol.TokenType;
 import io.github.hesandaliyanage.vault.protocol.ValidateResponse;
+import java.time.Duration;
 
 /**
  * Wraps another {@link TokenValidator} with an in-memory Caffeine cache.
@@ -14,10 +16,15 @@ import io.github.hesandaliyanage.vault.protocol.ValidateResponse;
  * staleness: a token revoked on the server is still treated as valid here
  * until its cache entry expires.
  *
+ * <p>Successful and unsuccessful responses use different TTLs:
+ * {@code valid=true} entries live for the full {@code ttl}, while
+ * {@code valid=false} entries live for a shorter {@code negative-ttl}. That
+ * means an attacker spamming bogus tokens fills the cache only briefly with
+ * entries that quickly expire, so legitimate cached entries are not evicted
+ * en masse.
+ *
  * <p>Transport failures (the {@code "vault-server unreachable"} response)
- * are not cached, so a brief outage does not poison the cache. Real
- * server responses — both {@code valid=true} and {@code valid=false} — are
- * cached for the configured TTL.
+ * are not cached at all, so a brief outage does not poison the cache.
  */
 public class CachingVaultClient implements TokenValidator {
 
@@ -27,7 +34,7 @@ public class CachingVaultClient implements TokenValidator {
     public CachingVaultClient(TokenValidator delegate, VaultCacheProperties properties) {
         this.delegate = delegate;
         this.cache = Caffeine.newBuilder()
-                .expireAfterWrite(properties.ttl())
+                .expireAfter(new ResponseExpiry(properties.ttl(), properties.negativeTtl()))
                 .maximumSize(properties.maxSize())
                 .build();
     }
@@ -56,5 +63,34 @@ public class CachingVaultClient implements TokenValidator {
     }
 
     private record CacheKey(TokenType type, String token) {
+    }
+
+    /**
+     * Per-entry expiry that returns the positive TTL for {@code valid=true}
+     * responses and the (shorter) negative TTL for {@code valid=false}.
+     */
+    private static final class ResponseExpiry implements Expiry<CacheKey, ValidateResponse> {
+        private final long positiveNanos;
+        private final long negativeNanos;
+
+        ResponseExpiry(Duration positiveTtl, Duration negativeTtl) {
+            this.positiveNanos = positiveTtl.toNanos();
+            this.negativeNanos = negativeTtl.toNanos();
+        }
+
+        @Override
+        public long expireAfterCreate(CacheKey key, ValidateResponse response, long currentTime) {
+            return response.valid() ? positiveNanos : negativeNanos;
+        }
+
+        @Override
+        public long expireAfterUpdate(CacheKey key, ValidateResponse response, long currentTime, long currentDuration) {
+            return response.valid() ? positiveNanos : negativeNanos;
+        }
+
+        @Override
+        public long expireAfterRead(CacheKey key, ValidateResponse response, long currentTime, long currentDuration) {
+            return currentDuration;
+        }
     }
 }
