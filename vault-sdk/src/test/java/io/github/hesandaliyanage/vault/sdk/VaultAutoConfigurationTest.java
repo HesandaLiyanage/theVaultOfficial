@@ -109,6 +109,19 @@ class VaultAutoConfigurationTest {
     }
 
     @Test
+    void missingServiceKeyFails() {
+        runner.withPropertyValues(
+                "vault.client.base-url=https://vault.test"
+        ).run(ctx -> {
+            assertThat(ctx).hasFailed();
+            assertThat(ctx.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("vault.client.service-key");
+        });
+    }
+
+    @Test
     void plainHttpJwksUriIsRejectedByDefault() {
         runner.withPropertyValues(
                 "vault.client.base-url=https://vault.test",

@@ -28,6 +28,14 @@ public class VaultClient implements TokenValidator {
     private final String serviceKey;
 
     public VaultClient(RestClient restClient, String serviceKey) {
+        if (restClient == null) {
+            throw new IllegalArgumentException("restClient must not be null");
+        }
+        if (serviceKey == null || serviceKey.isBlank()) {
+            throw new IllegalStateException(
+                    "vault.client.service-key must be configured. Without it the SDK cannot authenticate"
+                    + " to vault-server and every request would fail at runtime.");
+        }
         this.restClient = restClient;
         this.serviceKey = serviceKey;
     }
