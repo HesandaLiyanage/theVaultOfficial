@@ -11,6 +11,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *   client:
  *     jwks:
  *       uri: https://vault.internal/.well-known/jwks.json
+ *       expected-issuer: https://vault.internal
+ *       expected-audience: orders-service
  *       skip-remote-revocation-check: false
  * </pre>
  *
@@ -20,6 +22,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * round trip) but does not catch revocations on its own, so the SDK
  * still calls {@code /internal/validate} for each token unless
  * {@code skip-remote-revocation-check} is {@code true}.
+ *
+ * <p>{@code expected-issuer} is required whenever {@code uri} is set —
+ * without it, a JWT signed by any key advertised at the same JWKS URL
+ * could be accepted, including tokens issued for a different tenant or
+ * a different application. {@code expected-audience} is optional but
+ * recommended in multi-tenant deployments.
  *
  * <p>Setting {@code skip-remote-revocation-check=true} is a real
  * trade-off: tokens stay valid until expiry even if the user logs out
@@ -31,6 +39,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "vault.client.jwks")
 public record JwksProperties(
         URI uri,
+        String expectedIssuer,
+        String expectedAudience,
         boolean skipRemoteRevocationCheck
 ) {
 }

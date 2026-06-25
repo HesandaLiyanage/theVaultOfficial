@@ -48,9 +48,25 @@ class VaultAutoConfigurationTest {
         runner.withPropertyValues(
                 "vault.client.base-url=https://vault.test",
                 "vault.client.service-key=k",
-                "vault.client.jwks.uri=https://vault.test/.well-known/jwks.json"
+                "vault.client.jwks.uri=https://vault.test/.well-known/jwks.json",
+                "vault.client.jwks.expected-issuer=https://vault.test"
         ).run(ctx -> {
             assertThat(ctx.getBean(TokenValidator.class)).isInstanceOf(JwksTokenValidator.class);
+        });
+    }
+
+    @Test
+    void jwksWithoutExpectedIssuerFails() {
+        runner.withPropertyValues(
+                "vault.client.base-url=https://vault.test",
+                "vault.client.service-key=k",
+                "vault.client.jwks.uri=https://vault.test/.well-known/jwks.json"
+        ).run(ctx -> {
+            assertThat(ctx).hasFailed();
+            assertThat(ctx.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("expected-issuer");
         });
     }
 

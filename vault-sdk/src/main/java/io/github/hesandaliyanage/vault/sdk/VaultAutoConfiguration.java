@@ -72,6 +72,8 @@ public class VaultAutoConfiguration {
             requireSecureUrl("vault.client.jwks.uri", jwksProperties.uri().toString(), clientProperties.allowInsecureHttp());
             validator = new JwksTokenValidator(
                     jwksProperties.uri(),
+                    jwksProperties.expectedIssuer(),
+                    jwksProperties.expectedAudience(),
                     validator,
                     jwksProperties.skipRemoteRevocationCheck()
             );
