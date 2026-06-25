@@ -78,12 +78,19 @@ public class VaultAuditClient implements AutoCloseable {
 
     @Override
     public void close() {
+        // First signal the worker to stop accepting new work. The drain loop's
+        // condition `running.get() || !queue.isEmpty()` keeps it going until
+        // the queue is empty, so it will finish in-flight events on its own.
         running.set(false);
-        worker.interrupt();
         try {
             worker.join(2_000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+        // If the worker is still alive after the grace period, interrupt it —
+        // we tried to drain politely; now we give up to avoid blocking shutdown.
+        if (worker.isAlive()) {
+            worker.interrupt();
         }
     }
 }
