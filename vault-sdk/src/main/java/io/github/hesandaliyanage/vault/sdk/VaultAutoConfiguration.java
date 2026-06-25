@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -114,6 +115,19 @@ public class VaultAutoConfiguration {
     @ConditionalOnMissingBean
     public VaultAuthFilter vaultAuthFilter(TokenValidator validator, VaultFilterProperties properties) {
         return new VaultAuthFilter(validator, properties);
+    }
+
+    /**
+     * Stop Spring Boot's servlet-container filter auto-registration from
+     * adding {@link VaultAuthFilter} to the main filter chain. Consumers
+     * register it explicitly via {@code HttpSecurity.addFilterBefore(...)},
+     * so without this it would run twice per request.
+     */
+    @Bean
+    public FilterRegistrationBean<VaultAuthFilter> vaultAuthFilterRegistration(VaultAuthFilter filter) {
+        FilterRegistrationBean<VaultAuthFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean(destroyMethod = "close")
