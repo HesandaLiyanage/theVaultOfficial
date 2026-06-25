@@ -18,4 +18,30 @@ public record VaultPrincipal(
     public VaultPrincipal {
         scopes = scopes == null ? List.of() : List.copyOf(scopes);
     }
+
+    /**
+     * Returns a redacted summary safe for accidental log lines. The userId
+     * is masked to its last four characters, tenant and role appear as
+     * categories (not values), and scopes show only their count.
+     *
+     * <p>Controllers that need the full identity should access the record
+     * components directly rather than relying on {@code toString}.
+     */
+    @Override
+    public String toString() {
+        return "VaultPrincipal[userId=" + maskUserId(userId)
+                + ", tenantId=" + (tenantId == null ? "<none>" : "<set>")
+                + ", role=" + (role == null ? "<none>" : role)
+                + ", scopes=" + scopes.size() + "]";
+    }
+
+    private static String maskUserId(String userId) {
+        if (userId == null) {
+            return "<none>";
+        }
+        if (userId.length() <= 4) {
+            return "***";
+        }
+        return "***" + userId.substring(userId.length() - 4);
+    }
 }
