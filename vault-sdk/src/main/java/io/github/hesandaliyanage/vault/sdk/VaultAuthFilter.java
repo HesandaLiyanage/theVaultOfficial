@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -96,12 +97,34 @@ public class VaultAuthFilter extends OncePerRequestFilter {
 
     private boolean isPublic(HttpServletRequest request) {
         String path = request.getRequestURI();
+        if (path == null || hasSuspiciousSegment(path)) {
+            // Don't treat a traversal-bearing path as public — force it through auth.
+            return false;
+        }
         for (String pattern : properties.publicPaths()) {
             if (pathMatcher.match(pattern, path)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Defense-in-depth: refuse to honour public-path patterns for any URI that
+     * contains a {@code ..} segment, an encoded dot ({@code %2e}), or an
+     * encoded slash ({@code %2f}). Servlet containers normally normalise these
+     * away before the filter sees them, but a misconfigured container, a
+     * reverse proxy that decodes once but not twice, or a custom filter
+     * earlier in the chain can leak them through. Treating any such request as
+     * non-public means the worst case is "user must present a valid token to
+     * reach the resource," not "attacker bypasses /admin behind /public/**".
+     */
+    private static boolean hasSuspiciousSegment(String path) {
+        if (path.contains("..")) {
+            return true;
+        }
+        String lower = path.toLowerCase(Locale.ROOT);
+        return lower.contains("%2e") || lower.contains("%2f") || lower.contains("\\");
     }
 
     private String extractBearer(HttpServletRequest request) {

@@ -107,6 +107,31 @@ class VaultAuthFilterTest {
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
+    @Test
+    void publicPathPatternDoesNotMatchTraversal() throws Exception {
+        VaultFilterProperties propsWithGlob = new VaultFilterProperties(List.of("/public/**"), "X-API-Key");
+        TokenValidator rejectAll = rejectAll();
+        VaultAuthFilter filter = new VaultAuthFilter(rejectAll, propsWithGlob);
+
+        for (String suspiciousUri : new String[]{
+                "/public/../admin/secret",
+                "/public/..",
+                "/public/%2e%2e/admin",
+                "/public/%2fadmin",
+                "/public/\\admin"
+        }) {
+            MockHttpServletRequest req = new MockHttpServletRequest("GET", suspiciousUri);
+            req.setRequestURI(suspiciousUri);
+            MockHttpServletResponse res = new MockHttpServletResponse();
+
+            filter.doFilter(req, res, new MockFilterChain());
+
+            assertThat(res.getStatus())
+                    .as("path %s must not be treated as public", suspiciousUri)
+                    .isEqualTo(401);
+        }
+    }
+
     private TokenValidator rejectAll() {
         return (token, type) -> ValidateResponse.failure("nope");
     }
